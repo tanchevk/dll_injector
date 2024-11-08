@@ -1,5 +1,5 @@
 use core::ffi::c_void;
-use std::ffi::{OsString};
+use std::ffi::{c_char, CStr, CString, OsString};
 
 use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS};
 use windows::Win32::System::Threading::{CreateRemoteThread, OpenProcess, LPTHREAD_START_ROUTINE, PROCESS_ALL_ACCESS};
@@ -8,7 +8,7 @@ use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::core::{s, PWSTR};
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 fn main() -> Result<(), String> {
 	tracing_subscriber::fmt::init();
@@ -48,7 +48,7 @@ fn main() -> Result<(), String> {
 }
 
 fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::core::Error> {
-	let mut process_handle: HANDLE = unsafe { std::mem::zeroed() };
+	let mut process_handle: Option<HANDLE> = None;
 	let snapshot_handle: HANDLE;
 	let mut process_entry: PROCESSENTRY32 = unsafe { std::mem::zeroed() };
 
@@ -70,22 +70,25 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 	}
 
 	loop {
+		let sz_exe_file = unsafe {
+			CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
+		};
+		
+		debug!("Checking: {sz_exe_file:?}");
+		
 		if PWSTR::from_raw(
-			process_entry.szExeFile
-				.map(|char| char as u8)
-				.map(char::from)
-				.iter()
-				.collect::<String>()
+			sz_exe_file
+				.to_string_lossy()
 				.encode_utf16()
 				.collect::<Vec<u16>>()
 				.as_mut_ptr()
 		) == process_name {
 			match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
 				Ok(handle) => {
-					process_handle = handle;
-					
+					process_handle = Some(handle);
+
 					info!("Opened process with PID {}", process_entry.th32ProcessID);
-					
+
 					break
 				}
 				Err(error) => {
@@ -95,20 +98,33 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 				}
 			}
 		}
-		
+
 		if unsafe { Process32Next(snapshot_handle, &mut process_entry) }.is_err() {
+			error!("The process \"{}\" could not be found", unsafe { process_name.display() });
+			warn!("Check if the provided name matches the target process's exactly");
+			
 			break
 		}
 	}
 
-	Ok(process_handle)
+	if process_handle.is_none(){
+		error!("Process handle is None");
+
+		return Err(windows::core::Error::empty())
+	} else if process_handle.unwrap().is_invalid() {
+		error!("Process handle is invalid: {process_handle:?}");
+
+		return Err(windows::core::Error::empty())
+	}
+
+	Ok(process_handle.unwrap())
 }
 
 fn inject_dll(dll_name: PWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
-	let mut module: HMODULE = unsafe { std::mem::zeroed() };
+	let module: HMODULE;
 	let load_library_handle: FARPROC;
+	let thread_handle: HANDLE;
 	let mut sz_written_bytes: usize = 0;
-	let mut thread_handle: HANDLE = unsafe { std::mem::zeroed() };
 	
 	match unsafe { GetModuleHandleA(s!("kernel32.dll")) } {
 		Ok(module_handle) => module = module_handle,
