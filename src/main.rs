@@ -25,8 +25,8 @@ fn main() -> Result<(), Error> {
 		return Err(Error::new(HRESULT::default(), "Provide one item per field"))
 	}
 	
-	for string in &mut args {
-		string.push("\0")
+	for arg in &mut args {
+		arg.push("\0")
 	}
 	
 	let dll_name = args[2].clone();
