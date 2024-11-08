@@ -24,3 +24,8 @@ clap = { version = "4.5.20", features = ["derive"] }
 
 [profile.dev]
 opt-level = 0
+
+[profile.dev_optimized]
+opt-level = 0
+lto = "fat"
+codegen-units = 1
