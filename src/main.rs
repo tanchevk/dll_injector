@@ -7,17 +7,22 @@ use windows::Win32::System::Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PA
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
+use tracing_subscriber::util::SubscriberInitExt;
+use windows::core::{s, HRESULT, PCWSTR};
 use tracing::{error, info, warn};
-use windows::core::{s, PCWSTR};
 
-fn main() -> Result<(), String> {
-	tracing_subscriber::fmt::init();
+fn main() -> Result<(), windows::core::Error> {
+	tracing_subscriber::fmt()
+		.without_time()
+		.with_ansi(true)
+		.finish()
+		.init();
 
 	let mut args = std::env::args_os().collect::<Vec<OsString>>();
 	
 	if args.len() < 3 || args.len() > 3 {
 		println!("Usage: dll_injector [TARGET_NAME] [PATH_TO_DLL]");
-		return Err(String::from("Provide exactly one target and one dll"))
+		return Err(windows::core::Error::new(HRESULT::default(), "Provide one item per field"))
 	}
 	
 	for string in &mut args {
@@ -33,8 +38,7 @@ fn main() -> Result<(), String> {
 			.encode_utf16()
 			.collect::<Vec<u16>>()
 			.as_mut_ptr()
-	))
-		.map_err(|error| error.message())?;
+	))?;
 	
 	inject_dll(
 		PCWSTR::from_raw(
@@ -46,8 +50,7 @@ fn main() -> Result<(), String> {
 		),
 		dll_name.len() * size_of::<u16>(),
 		target_handle
-	)
-		.map_err(|error| error.message())?;
+	)?;
 	
 	Ok(())
 }
