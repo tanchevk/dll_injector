@@ -21,8 +21,8 @@ To use it, run:
 ```shell
 dll_injector [TARGET] [DLL PATH]
 ```
-where [TARGET] is the process to inject the DLL into,
-and [DLL PATH] is the path to the DLL to inject.
+where `[TARGET]` is the process to inject the DLL into,
+and `[DLL PATH]` is the path to the DLL to inject.
 
 ## Licensing
 Dual-licensed under both the [Apache License, Version 2.0](LICENSE-APACHE)
