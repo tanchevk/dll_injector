@@ -8,23 +8,28 @@ use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use tracing::{error, info, warn};
-use windows::core::{s, PWSTR};
+use windows::core::{s, PCWSTR};
 
 fn main() -> Result<(), String> {
 	tracing_subscriber::fmt::init();
 
-	let args = std::env::args_os().collect::<Vec<OsString>>();
+	let mut args = std::env::args_os().collect::<Vec<OsString>>();
 	
 	if args.len() < 3 || args.len() > 3 {
 		println!("Usage: dll_injector [TARGET_NAME] [PATH_TO_DLL]");
 		return Err(String::from("Provide exactly one target and one dll"))
 	}
 	
+	for string in &mut args {
+		string.push("\0")
+	}
+	
 	let dll_name = args[2].clone();
 	
-	let target_handle = process_enumerate_and_search(PWSTR::from_raw(
+	let target_handle = process_enumerate_and_search(PCWSTR::from_raw(
 		args[1].clone()
 			.to_string_lossy()
+			.replace('\u{FFFD}', "")
 			.encode_utf16()
 			.collect::<Vec<u16>>()
 			.as_mut_ptr()
@@ -32,12 +37,12 @@ fn main() -> Result<(), String> {
 		.map_err(|error| error.message())?;
 	
 	inject_dll(
-		PWSTR::from_raw(
+		PCWSTR::from_raw(
 			dll_name.clone()
 				.to_string_lossy()
 				.encode_utf16()
 				.collect::<Vec<u16>>()
-				.as_mut_ptr()
+				.as_ptr()
 		),
 		dll_name.len() * size_of::<u16>(),
 		target_handle
@@ -47,7 +52,7 @@ fn main() -> Result<(), String> {
 	Ok(())
 }
 
-fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::core::Error> {
+fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, windows::core::Error> {
 	let mut process_handle: Option<HANDLE> = None;
 	let snapshot_handle: HANDLE;
 	let mut process_entry: PROCESSENTRY32 = unsafe { std::mem::zeroed() };
@@ -75,15 +80,20 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 				CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
 			};
 
-			// debug!("Checking: {sz_exe_file:?}");
+			info!("Checking: {sz_exe_file:?}");
 
-			if PWSTR::from_raw(
-				sz_exe_file
+			if unsafe { PCWSTR::from_raw({
+				let mut str = sz_exe_file
 					.to_string_lossy()
+					.replace('\u{FFFD}', "");
+				
+				str.push('\0');
+					
+				str
 					.encode_utf16()
 					.collect::<Vec<u16>>()
-					.as_mut_ptr()
-			) == process_name {
+					.as_ptr()
+			}).to_string()?.to_lowercase().trim() } == unsafe { process_name.to_string()?.to_lowercase().trim() } {
 				match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
 					Ok(handle) => {
 						process_handle = Some(handle);
@@ -129,7 +139,7 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 	Ok(process_handle.unwrap())
 }
 
-fn inject_dll(dll_name: PWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
+fn inject_dll(dll_name: PCWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
 	let module: HMODULE;
 	let load_library_handle: FARPROC;
 	let thread_handle: HANDLE;
