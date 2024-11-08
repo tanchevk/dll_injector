@@ -100,7 +100,14 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 		}
 
 		if unsafe { Process32Next(snapshot_handle, &mut process_entry) }.is_err() {
-			error!("The process \"{}\" could not be found", unsafe { process_name.display() });
+			error!(
+				"The process \"{}\" could not be found",
+				unsafe {
+					process_name
+						.to_string()
+						.unwrap_or(String::from("[ERROR GETTING NAME]")) 
+				}
+			);
 			warn!("Check if the provided name matches the target process's exactly");
 			
 			break
