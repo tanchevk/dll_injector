@@ -9,6 +9,8 @@ use windows::Win32::System::Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PA
 use windows::Win32::System::Threading::{CreateRemoteThread, OpenProcess, LPTHREAD_START_ROUTINE, PROCESS_ALL_ACCESS};
 
 fn main() -> Result<(), String> {
+	tracing_subscriber::fmt::init();
+	
 	let args = std::env::args().collect::<Vec<String>>();
 	
 	if args.len() < 3 || args.len() > 3 {
