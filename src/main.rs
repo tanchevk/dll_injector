@@ -1,5 +1,5 @@
 use core::ffi::c_void;
-use std::ffi::{c_char, CStr, CString, OsString};
+use std::ffi::{c_char, CStr, OsString};
 
 use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS};
 use windows::Win32::System::Threading::{CreateRemoteThread, OpenProcess, LPTHREAD_START_ROUTINE, PROCESS_ALL_ACCESS};
@@ -7,8 +7,8 @@ use windows::Win32::System::Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PA
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
+use tracing::{error, info, warn};
 use windows::core::{s, PWSTR};
-use tracing::{debug, error, info, warn};
 
 fn main() -> Result<(), String> {
 	tracing_subscriber::fmt::init();
@@ -73,9 +73,9 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 		let sz_exe_file = unsafe {
 			CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
 		};
-		
+
 		// debug!("Checking: {sz_exe_file:?}");
-		
+
 		if PWSTR::from_raw(
 			sz_exe_file
 				.to_string_lossy()
@@ -105,11 +105,11 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 				unsafe {
 					process_name
 						.to_string()
-						.unwrap_or(String::from("[ERROR GETTING NAME]")) 
+						.unwrap_or(String::from("[ERROR GETTING NAME]"))
 				}
 			);
 			warn!("Check if the provided name matches the target process's exactly");
-			
+
 			break
 		}
 	}
@@ -132,7 +132,7 @@ fn inject_dll(dll_name: PWSTR, sz_dll_name: usize, target_process_handle: HANDLE
 	let load_library_handle: FARPROC;
 	let thread_handle: HANDLE;
 	let mut sz_written_bytes: usize = 0;
-	
+
 	match unsafe { GetModuleHandleA(s!("kernel32.dll")) } {
 		Ok(module_handle) => module = module_handle,
 		Err(error) => {
