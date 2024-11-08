@@ -70,31 +70,33 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 	}
 
 	loop {
-		let sz_exe_file = unsafe {
-			CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
-		};
+		{
+			let sz_exe_file = unsafe {
+				CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
+			};
 
-		// debug!("Checking: {sz_exe_file:?}");
+			// debug!("Checking: {sz_exe_file:?}");
 
-		if PWSTR::from_raw(
-			sz_exe_file
-				.to_string_lossy()
-				.encode_utf16()
-				.collect::<Vec<u16>>()
-				.as_mut_ptr()
-		) == process_name {
-			match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
-				Ok(handle) => {
-					process_handle = Some(handle);
+			if PWSTR::from_raw(
+				sz_exe_file
+					.to_string_lossy()
+					.encode_utf16()
+					.collect::<Vec<u16>>()
+					.as_mut_ptr()
+			) == process_name {
+				match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
+					Ok(handle) => {
+						process_handle = Some(handle);
 
-					info!("Opened process with PID {}", process_entry.th32ProcessID);
+						info!("Opened process with PID {}", process_entry.th32ProcessID);
 
-					break
-				}
-				Err(error) => {
-					error!("OpenProcess failed: {} (Error code: {})", error.message(), error.code());
+						break
+					}
+					Err(error) => {
+						error!("OpenProcess failed: {} (Error code: {})", error.message(), error.code());
 
-					return Err(error)
+						return Err(error)
+					}
 				}
 			}
 		}
