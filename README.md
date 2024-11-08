@@ -24,6 +24,10 @@ dll_injector [TARGET] [DLL PATH]
 where `[TARGET]` is the process to inject the DLL into,
 and `[DLL PATH]` is the path to the DLL to inject.
 
+## Platform Compatability
+Due to its reliance on the Win32 API, only Windows is supported.
+Cross-compiling it from a non-Windows environment may or may not work.
+
 ## Licensing
 Dual-licensed under both the [Apache License, Version 2.0](LICENSE-APACHE)
 and the [MIT license](LICENSE-MIT).
