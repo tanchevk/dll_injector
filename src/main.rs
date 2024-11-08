@@ -1,4 +1,5 @@
 use core::ffi::c_void;
+use std::ffi::{OsString};
 
 use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS};
 use windows::Win32::System::Threading::{CreateRemoteThread, OpenProcess, LPTHREAD_START_ROUTINE, PROCESS_ALL_ACCESS};
@@ -6,13 +7,13 @@ use windows::Win32::System::Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PA
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
+use windows::core::{s, PWSTR};
 use tracing::{error, info};
-use windows::core::s;
 
 fn main() -> Result<(), String> {
 	tracing_subscriber::fmt::init();
-	
-	let args = std::env::args().collect::<Vec<String>>();
+
+	let args = std::env::args_os().collect::<Vec<OsString>>();
 	
 	if args.len() < 3 || args.len() > 3 {
 		println!("Usage: dll_injector [TARGET_NAME] [PATH_TO_DLL]");
@@ -21,16 +22,32 @@ fn main() -> Result<(), String> {
 	
 	let dll_name = args[2].clone();
 	
-	let target_handle = process_enumerate_and_search(args[1].clone())
+	let target_handle = process_enumerate_and_search(PWSTR::from_raw(
+		args[1].clone()
+			.to_string_lossy()
+			.encode_utf16()
+			.collect::<Vec<u16>>()
+			.as_mut_ptr()
+	))
 		.map_err(|error| error.message())?;
 	
-	inject_dll(dll_name.clone(), (dll_name.len() + 1) * size_of::<u16>(), target_handle)
+	inject_dll(
+		PWSTR::from_raw(
+			dll_name.clone()
+				.to_string_lossy()
+				.encode_utf16()
+				.collect::<Vec<u16>>()
+				.as_mut_ptr()
+		),
+		dll_name.len() * size_of::<u16>(),
+		target_handle
+	)
 		.map_err(|error| error.message())?;
 	
 	Ok(())
 }
 
-fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows::core::Error> {
+fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::core::Error> {
 	let mut process_handle: HANDLE = unsafe { std::mem::zeroed() };
 	let snapshot_handle: HANDLE;
 	let mut process_entry: PROCESSENTRY32 = unsafe { std::mem::zeroed() };
@@ -53,9 +70,15 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 	}
 
 	loop {
-		if String::from_utf8_lossy(
-			&process_entry.szExeFile
-				.map(|char| unsafe { std::mem::transmute::<i8, u8>(char) })
+		if PWSTR::from_raw(
+			process_entry.szExeFile
+				.map(|char| char as u8)
+				.map(char::from)
+				.iter()
+				.collect::<String>()
+				.encode_utf16()
+				.collect::<Vec<u16>>()
+				.as_mut_ptr()
 		) == process_name {
 			match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
 				Ok(handle) => {
@@ -81,7 +104,7 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 	Ok(process_handle)
 }
 
-fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
+fn inject_dll(dll_name: PWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
 	let mut module: HMODULE = unsafe { std::mem::zeroed() };
 	let load_library_handle: FARPROC;
 	let mut sz_written_bytes: usize = 0;
