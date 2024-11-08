@@ -96,7 +96,7 @@ fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, windows:
 					.encode_utf16()
 					.collect::<Vec<u16>>()
 					.as_ptr()
-			}).to_string()?.to_lowercase().trim() } == unsafe { process_name.to_string()?.to_lowercase().trim() } {
+			}).to_string()?.trim() } == unsafe { process_name.to_string()?.trim() } {
 				match unsafe { OpenProcess(PROCESS_ALL_ACCESS, false, process_entry.th32ProcessID) } {
 					Ok(handle) => {
 						process_handle = Some(handle);
