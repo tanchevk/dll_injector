@@ -41,6 +41,8 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 		}
 	}
 
+	process_entry.dwSize = size_of_val(&process_entry) as u32;
+
 	if let Err(error) = unsafe { Process32First(snapshot_handle, &mut process_entry) } {
 		println!("Process32First failed: {} (Error code: {})", error.message(), error.code());
 
