@@ -8,8 +8,23 @@ use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use tracing_subscriber::util::SubscriberInitExt;
-use windows::core::{s, HRESULT, PCWSTR, Error};
+use windows::core::{s, PCWSTR, Error};
 use tracing::{error, info, warn};
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+	/// The name of the target process
+	#[arg(required = true)]
+	target: OsString,
+	/// The path to the DLL file that will be injected
+	#[arg(required = true)]
+	dll: OsString,
+	/// Enables verbose logging for events
+	#[arg(short, long)]
+	verbose: bool,
+}
 
 fn main() -> Result<(), Error> {
 	tracing_subscriber::fmt()
@@ -18,27 +33,27 @@ fn main() -> Result<(), Error> {
 		.finish()
 		.init();
 
-	let mut args = std::env::args_os().collect::<Vec<OsString>>();
+	let args = Args::parse();
 	
-	if args.len() < 3 || args.len() > 3 {
-		println!("Usage: dll_injector [TARGET_NAME] [PATH_TO_DLL]");
-		return Err(Error::new(HRESULT::default(), "Provide one item per field"))
-	}
+	let mut critical_args = [args.target, args.dll];
 	
-	for arg in &mut args {
+	for arg in &mut critical_args {
 		arg.push("\0")
 	}
 	
-	let dll_name = args[2].clone();
+	let dll_name = critical_args[1].clone();
 	
-	let target_handle = process_enumerate_and_search(PCWSTR::from_raw(
-		args[1].clone()
-			.to_string_lossy()
-			.replace('\u{FFFD}', "")
-			.encode_utf16()
-			.collect::<Vec<u16>>()
-			.as_mut_ptr()
-	))?;
+	let target_handle = process_enumerate_and_search(
+		PCWSTR::from_raw(
+			critical_args[0].clone()
+				.to_string_lossy()
+				.replace('\u{FFFD}', "")
+				.encode_utf16()
+				.collect::<Vec<u16>>()
+				.as_mut_ptr()
+		),
+		args.verbose
+	)?;
 	
 	inject_dll(
 		PCWSTR::from_raw(
@@ -55,7 +70,7 @@ fn main() -> Result<(), Error> {
 	Ok(())
 }
 
-fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, Error> {
+fn process_enumerate_and_search(process_name: PCWSTR, verbose: bool) -> Result<HANDLE, Error> {
 	let mut process_handle: Option<HANDLE> = None;
 	let snapshot_handle: HANDLE;
 	let mut process_entry: PROCESSENTRY32 = unsafe { std::mem::zeroed() };
@@ -83,7 +98,9 @@ fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, Error> {
 				CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
 			};
 
-			info!("Checking: {sz_exe_file:?}");
+			if verbose {
+				info!("Checking: {sz_exe_file:?}");
+			}
 
 			if unsafe { PCWSTR::from_raw({
 				let mut str = sz_exe_file
