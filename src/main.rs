@@ -74,7 +74,7 @@ fn process_enumerate_and_search(process_name: PWSTR) -> Result<HANDLE, windows::
 			CStr::from_ptr(process_entry.szExeFile.clone().as_ptr() as *mut c_char)
 		};
 		
-		debug!("Checking: {sz_exe_file:?}");
+		// debug!("Checking: {sz_exe_file:?}");
 		
 		if PWSTR::from_raw(
 			sz_exe_file
