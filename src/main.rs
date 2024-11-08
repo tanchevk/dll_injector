@@ -8,10 +8,10 @@ use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use tracing_subscriber::util::SubscriberInitExt;
-use windows::core::{s, HRESULT, PCWSTR};
+use windows::core::{s, HRESULT, PCWSTR, Error};
 use tracing::{error, info, warn};
 
-fn main() -> Result<(), windows::core::Error> {
+fn main() -> Result<(), Error> {
 	tracing_subscriber::fmt()
 		.without_time()
 		.with_ansi(true)
@@ -22,7 +22,7 @@ fn main() -> Result<(), windows::core::Error> {
 	
 	if args.len() < 3 || args.len() > 3 {
 		println!("Usage: dll_injector [TARGET_NAME] [PATH_TO_DLL]");
-		return Err(windows::core::Error::new(HRESULT::default(), "Provide one item per field"))
+		return Err(Error::new(HRESULT::default(), "Provide one item per field"))
 	}
 	
 	for string in &mut args {
@@ -55,7 +55,7 @@ fn main() -> Result<(), windows::core::Error> {
 	Ok(())
 }
 
-fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, windows::core::Error> {
+fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, Error> {
 	let mut process_handle: Option<HANDLE> = None;
 	let snapshot_handle: HANDLE;
 	let mut process_entry: PROCESSENTRY32 = unsafe { std::mem::zeroed() };
@@ -132,17 +132,17 @@ fn process_enumerate_and_search(process_name: PCWSTR) -> Result<HANDLE, windows:
 	if process_handle.is_none(){
 		error!("Process handle is None");
 
-		return Err(windows::core::Error::empty())
+		return Err(Error::empty())
 	} else if process_handle.unwrap().is_invalid() {
 		error!("Process handle is invalid: {process_handle:?}");
 
-		return Err(windows::core::Error::empty())
+		return Err(Error::empty())
 	}
 
 	Ok(process_handle.unwrap())
 }
 
-fn inject_dll(dll_name: PCWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), windows::core::Error> {
+fn inject_dll(dll_name: PCWSTR, sz_dll_name: usize, target_process_handle: HANDLE) -> Result<(), Error> {
 	let module: HMODULE;
 	let load_library_handle: FARPROC;
 	let thread_handle: HANDLE;
