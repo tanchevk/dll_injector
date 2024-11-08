@@ -24,6 +24,10 @@ dll_injector [TARGET] [DLL PATH]
 where `[TARGET]` is the process to inject the DLL into,
 and `[DLL PATH]` is the path to the DLL to inject.
 
+## Prebuilt Binaries
+Compiled binaries are available for download in the
+[Releases](https://github.com/tanchevk/dll_injector/releases) tab.
+
 ## Platform Compatability
 Due to its reliance on the Win32 API, only Windows is supported.
 Cross-compiling it from a non-Windows environment may or may not work.

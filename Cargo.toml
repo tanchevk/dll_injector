@@ -21,3 +21,6 @@ windows = { version = "0.58.0", features = [
 tracing = { version = "0.1.40", features = ["max_level_debug"] }
 tracing-subscriber = { version = "0.3.18", features = ["ansi"] }
 clap = { version = "4.5.20", features = ["derive"] }
+
+[profile.dev]
+opt-level = 0
