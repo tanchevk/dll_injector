@@ -1,5 +1,5 @@
 use core::ffi::c_void;
-
+use tracing::{error, info};
 use windows::core::s;
 use windows::Win32::Foundation::{GetLastError, FARPROC, HANDLE, HMODULE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
@@ -35,7 +35,7 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 	match unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, std::mem::zeroed()) } {
 		Ok(handle) => snapshot_handle = handle,
 		Err(error) => {
-			println!("CreateToolhelp32Snapshot failed: {} (Error code: {})", error.message(), error.code());
+			error!("CreateToolhelp32Snapshot failed: {} (Error code: {})", error.message(), error.code());
 
 			return Err(error)
 		}
@@ -44,7 +44,7 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 	process_entry.dwSize = size_of_val(&process_entry) as u32;
 
 	if let Err(error) = unsafe { Process32First(snapshot_handle, &mut process_entry) } {
-		println!("Process32First failed: {} (Error code: {})", error.message(), error.code());
+		error!("Process32First failed: {} (Error code: {})", error.message(), error.code());
 
 		return Err(error)
 	}
@@ -58,12 +58,12 @@ fn process_enumerate_and_search(process_name: String) -> Result<HANDLE, windows:
 				Ok(handle) => {
 					process_handle = handle;
 					
-					println!("Opened process with PID {}", process_entry.th32ProcessID);
+					info!("Opened process with PID {}", process_entry.th32ProcessID);
 					
 					break
 				}
 				Err(error) => {
-					println!("OpenProcess failed: {} (Error code: {})", error.message(), error.code());
+					error!("OpenProcess failed: {} (Error code: {})", error.message(), error.code());
 
 					return Err(error)
 				}
@@ -87,7 +87,7 @@ fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDL
 	match unsafe { GetModuleHandleA(s!("kernel32.dll")) } {
 		Ok(module_handle) => module = module_handle,
 		Err(error) => {
-			println!("GetModuleHandleA failed: {} (Error code: {})", error.message(), error.code());
+			error!("GetModuleHandleA failed: {} (Error code: {})", error.message(), error.code());
 
 			return Err(error)
 		}
@@ -98,7 +98,7 @@ fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDL
 		None => {
 			let error = unsafe { GetLastError().to_hresult() };
 
-			println!("GetProcAddress failed: {} (Error code: {})", error.message(), error.0);
+			error!("GetProcAddress failed: {} (Error code: {})", error.message(), error.0);
 
 			return error.ok()
 		}
@@ -111,7 +111,7 @@ fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDL
 	if library_address.is_null() {
 		let error = unsafe { GetLastError().to_hresult() };
 
-		println!("VirtualAllocEX failed: {} (Error code: {})", error.message(), error.0);
+		error!("VirtualAllocEX failed: {} (Error code: {})", error.message(), error.0);
 
 		return error.ok()
 	}
@@ -127,7 +127,7 @@ fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDL
 	} {
 		Ok(()) => {}
 		Err(error) => {
-			println!("WriteProcessMemory failed: {} (Error code: {})", error.message(), error.code());
+			error!("WriteProcessMemory failed: {} (Error code: {})", error.message(), error.code());
 
 			return Err(error)
 		}
@@ -147,10 +147,10 @@ fn inject_dll(dll_name: String, sz_dll_name: usize, target_process_handle: HANDL
 		Ok(handle) => {
 			thread_handle = handle;
 			
-			println!("Created remote thread with handle {:?}", thread_handle)
+			info!("Created remote thread with handle {:?}", thread_handle)
 		}
 		Err(error) => {
-			println!("CreateRemoteThread failed: {} (Error code: {})", error.message(), error.code());
+			error!("CreateRemoteThread failed: {} (Error code: {})", error.message(), error.code());
 
 			return Err(error)	
 		}
