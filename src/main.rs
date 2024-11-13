@@ -10,7 +10,7 @@ use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use tracing_subscriber::util::SubscriberInitExt;
 use windows::core::{s, PCWSTR, Error};
 use tracing::{error, info, warn};
-use clap::Parser;
+use clap::{Parser, ValueHint};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -19,7 +19,7 @@ struct Args {
 	#[arg(required = true)]
 	target: OsString,
 	/// The path to the DLL file that will be injected
-	#[arg(required = true)]
+	#[arg(required = true, value_hint = ValueHint::FilePath)]
 	dll: OsString,
 	/// Enables verbose logging for events
 	#[arg(short, long)]
