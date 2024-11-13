@@ -25,7 +25,7 @@ clap = { version = "4.5.20", features = ["derive", "color"] }
 [profile.dev]
 opt-level = 0
 
-[profile.dev_optimized]
+[profile.dev_optimised]
 inherits = "dev"
 incremental = false
 opt-level = 0
