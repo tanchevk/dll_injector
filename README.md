@@ -10,7 +10,7 @@ git clone https://github.com/tanchevk/dll_injector.git
 # Compile
 # Do NOT compile with --release
 # Compiling this in release mode breaks it, for some reason
-cargo build --profile dev
+cargo build --profile dev_optimised
 ```
 
 After compiling it, the binary should be in `target/debug`.
